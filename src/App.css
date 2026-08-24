@@ -1,0 +1,90 @@
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh;
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.header h1 {
+  font-size: 2.5rem;
+  color: #ff4757;
+  margin-bottom: 5px;
+}
+
+.header p {
+  font-size: 1rem;
+  color: #a4b0be;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  /* Ye button ko screen ke center mein rakhega */
+}
+
+/* Bada Red SOS Button */
+.sos-button {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background-color: #ff4757;
+  color: white;
+  font-size: 3.5rem;
+  font-weight: 900;
+  border: none;
+  box-shadow: 0 0 30px rgba(255, 71, 87, 0.6);
+  /* Red glow effect */
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Button dabane par thoda chhota hoga (click feel) */
+.sos-button:active {
+  transform: scale(0.95);
+}
+
+/* Jab SOS active ho jaye tab button ka design badal jayega */
+.sos-button.active {
+  background-color: #2f3542;
+  box-shadow: 0 0 30px rgba(47, 53, 66, 0.6);
+  border: 6px solid #ff4757;
+  color: #ff4757;
+  font-size: 2.5rem;
+}
+
+.status-text {
+  margin-top: 40px;
+  font-size: 1.2rem;
+  color: #dfe4ea;
+  font-weight: bold;
+}
+
+/* Naya CSS Location Box ke liye */
+.status-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 30px;
+}
+
+.location-box {
+  margin-top: 15px;
+  background-color: #2f3542;
+  padding: 15px 25px;
+  border-radius: 10px;
+  border: 1px solid #ff4757;
+  color: #ffffff;
+  font-family: monospace;
+  font-size: 1.1rem;
+}
+
+.error-text {
+  margin-top: 15px;
+  color: #ff4757;
+  font-weight: bold;
+}
