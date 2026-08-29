@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { auth, database } from './firebase';
 import { ref, set, update, get } from 'firebase/database';
+import { signOut } from 'firebase/auth';
 import emailjs from '@emailjs/browser';
 import './App.css';
 import Auth from './Auth';
 import Dashboard from './Dashboard';
-import EmergencyContacts from './EmergencyContacts';
+import GuardiansPage from './EmergencyContact/GuardiansPage';
 
 const EMAILJS_SERVICE_ID = "service_s22wwzj";
 const EMAILJS_TEMPLATE_ID = "template_ii0hc0q";
@@ -167,87 +168,205 @@ function App() {
     }
   };
 
+  const handleLogout = () => {
+    signOut(auth).then(() => {
+      setIsLoggedIn(false);
+    });
+  };
+
   if (!isLoggedIn) {
     return <Auth setIsLoggedIn={setIsLoggedIn} />;
   }
 
+  const user = auth.currentUser;
+  const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
+
   return (
-    <div className="app-container">
-      <header className="header">
-        <h1>ResQAlert</h1>
-        <p>Proactive Safety Application</p>
-      </header>
+    <div className="app-shell">
+      {/* Full-width Top Professional Navbar */}
+      <header className="navbar-wrapper">
+        <div className="navbar-container">
+          
+          {/* Left: Brand Identity */}
+          <div className="navbar-brand" onClick={() => setCurrentView('sos')}>
+            <div className="navbar-brand-logo">
+              <div className="navbar-logo-glow"></div>
+              <span className="navbar-logo-icon">🚨</span>
+            </div>
+            <div className="navbar-brand-info">
+              <div className="navbar-brand-title">
+                ResQ<span>Alert</span>
+              </div>
+              <span className="navbar-brand-tag">PROACTIVE SAFETY</span>
+            </div>
+          </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', margin: '15px 0', flexWrap: 'wrap' }}>
-        <button
-          onClick={() => setCurrentView('sos')}
-          style={{
-            padding: '8px 14px', borderRadius: '5px',
-            backgroundColor: currentView === 'sos' ? '#ff4757' : '#e0e0e0',
-            color: currentView === 'sos' ? '#fff' : '#333', border: 'none', cursor: 'pointer'
-          }}
-        >
-          SOS App
-        </button>
-        <button
-          onClick={() => setCurrentView('contacts')}
-          style={{
-            padding: '8px 14px', borderRadius: '5px',
-            backgroundColor: currentView === 'contacts' ? '#ff4757' : '#e0e0e0',
-            color: currentView === 'contacts' ? '#fff' : '#333', border: 'none', cursor: 'pointer'
-          }}
-        >
-          Guardians
-        </button>
-        <button
-          onClick={() => setCurrentView('dashboard')}
-          style={{
-            padding: '8px 14px', borderRadius: '5px',
-            backgroundColor: currentView === 'dashboard' ? '#ff4757' : '#e0e0e0',
-            color: currentView === 'dashboard' ? '#fff' : '#333', border: 'none', cursor: 'pointer'
-          }}
-        >
-          Admin Dashboard
-        </button>
-      </div>
+          {/* Center: Desktop Navigation Tabs */}
+          <nav className="navbar-nav desktop-nav" role="tablist" aria-label="Main navigation">
+            <button
+              id="nav-sos"
+              role="tab"
+              aria-selected={currentView === 'sos'}
+              className={`navbar-nav-item ${currentView === 'sos' ? 'active' : ''}`}
+              onClick={() => setCurrentView('sos')}
+            >
+              SOS
+            </button>
+            <button
+              id="nav-contacts"
+              role="tab"
+              aria-selected={currentView === 'contacts'}
+              className={`navbar-nav-item ${currentView === 'contacts' ? 'active' : ''}`}
+              onClick={() => setCurrentView('contacts')}
+            >
+              Guardians
+            </button>
+            <button
+              id="nav-dashboard"
+              role="tab"
+              aria-selected={currentView === 'dashboard'}
+              className={`navbar-nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setCurrentView('dashboard')}
+            >
+              Dashboard
+            </button>
+          </nav>
 
-      {currentView === 'sos' && (
-        <main className="main-content">
-          <button
-            className={`sos-button ${sosActive ? 'active' : ''}`}
-            onClick={handleSosClick}
-          >
-            {sosActive ? 'STOP' : 'SOS'}
-          </button>
-          <div className="status-container">
-            <p className="status-text">
-              {sosActive
-                ? '🚨 Emergency Alert Sent Silently!'
-                : 'Tap the SOS button in an emergency'}
-            </p>
-            {sosActive && (
-              <p style={{ color: '#ff6b6b', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                {recordingStatus}
-              </p>
-            )}
-            {sosActive && location && (
-              <div className="location-box">
-                <p>Latitude: {location.latitude.toFixed(5)}</p>
-                <p>Longitude: {location.longitude.toFixed(5)}</p>
-                <p style={{ color: '#2ed573', marginTop: '10px', fontSize: '0.9rem' }}>
-                  ✓ Silent Alert & Audio Syncing...
-                </p>
+          {/* Right: Status Pill, User, Logout */}
+          <div className="navbar-actions">
+            <div className={`nav-status-badge ${sosActive ? 'danger' : 'safe'}`}>
+              <span className="nav-status-dot"></span>
+              <span className="nav-status-text">{sosActive ? 'EMERGENCY' : 'READY'}</span>
+            </div>
+
+            {user?.email && (
+              <div className="nav-user-pill" title={user.email}>
+                <span className="nav-user-avatar">{userInitial}</span>
+                <span className="nav-user-email">{user.email}</span>
               </div>
             )}
-            {locationError && (
-              <p className="error-text">{locationError}</p>
+
+            <button 
+              className="navbar-btn-logout" 
+              onClick={handleLogout} 
+              title="Log out from account"
+              aria-label="Log out"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+
+        </div>
+      </header>
+
+      {/* Mobile-Only Segmented Tabs (Rendered outside/below the top navbar) */}
+      <div className="mobile-tabs-container">
+        <nav className="mobile-segmented-nav" role="tablist" aria-label="Mobile navigation">
+          <button
+            id="mobile-nav-sos"
+            role="tab"
+            aria-selected={currentView === 'sos'}
+            className={`mobile-nav-btn ${currentView === 'sos' ? 'active' : ''}`}
+            onClick={() => setCurrentView('sos')}
+          >
+            SOS
+          </button>
+          <button
+            id="mobile-nav-contacts"
+            role="tab"
+            aria-selected={currentView === 'contacts'}
+            className={`mobile-nav-btn ${currentView === 'contacts' ? 'active' : ''}`}
+            onClick={() => setCurrentView('contacts')}
+          >
+            Guardians
+          </button>
+          <button
+            id="mobile-nav-dashboard"
+            role="tab"
+            aria-selected={currentView === 'dashboard'}
+            className={`mobile-nav-btn ${currentView === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setCurrentView('dashboard')}
+          >
+            Dashboard
+          </button>
+        </nav>
+      </div>
+
+      {/* Main App Page Content */}
+      <main className="app-main-content">
+        {currentView === 'sos' && (
+          <div className="sos-view-container">
+            {/* SOS Button with pulsing ambient rings */}
+            <div className="sos-wrapper">
+              {!sosActive && (
+                <>
+                  <div className="sos-ring"></div>
+                  <div className="sos-ring"></div>
+                  <div className="sos-ring"></div>
+                </>
+              )}
+              <button
+                id="sos-trigger-btn"
+                className={`sos-button ${sosActive ? 'active' : ''}`}
+                onClick={handleSosClick}
+                aria-label={sosActive ? 'Deactivate SOS alert' : 'Activate SOS emergency alert'}
+              >
+                {sosActive ? 'STOP' : 'SOS'}
+              </button>
+            </div>
+
+            {/* Status Information */}
+            <div className="status-container">
+              <p className={`status-text ${sosActive ? 'alert-active' : ''}`}>
+                {sosActive
+                  ? '🚨 Emergency Alert Sent Silently!'
+                  : 'Tap the SOS button in an emergency'}
+              </p>
+
+              {sosActive && recordingStatus && (
+                <p className="recording-status">{recordingStatus}</p>
+              )}
+
+              {sosActive && location && (
+                <div className="location-box">
+                  <div className="location-box-header">
+                    <span>📍</span> Live Location Captured
+                  </div>
+                  <div className="location-coord">
+                    <span className="label">Latitude</span>
+                    <span className="value">{location.latitude.toFixed(6)}°</span>
+                  </div>
+                  <div className="location-coord">
+                    <span className="label">Longitude</span>
+                    <span className="value">{location.longitude.toFixed(6)}°</span>
+                  </div>
+                  <div className="sync-indicator">
+                    <span className="sync-dot"></span>
+                    Syncing live to Guardian Dashboard...
+                  </div>
+                </div>
+              )}
+
+              {locationError && (
+                <p className="error-text">⚠️ {locationError}</p>
+              )}
+            </div>
+
+            {!sosActive && (
+              <p className="sos-hint">
+                One tap instantly alerts guardians with live GPS & audio silently
+              </p>
             )}
           </div>
-        </main>
-      )}
+        )}
 
-      {currentView === 'contacts' && <EmergencyContacts />}
-      {currentView === 'dashboard' && <Dashboard />}
+        {currentView === 'contacts' && <GuardiansPage />}
+        {currentView === 'dashboard' && <Dashboard />}
+      </main>
     </div>
   );
 }
