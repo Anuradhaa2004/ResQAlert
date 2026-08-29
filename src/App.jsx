@@ -7,7 +7,6 @@ import Auth from './Auth';
 import Dashboard from './Dashboard';
 import EmergencyContacts from './EmergencyContacts';
 
-// 🔑 Tumhari EmailJS Keys (Public Key yahan paste kar dena)
 const EMAILJS_SERVICE_ID = "service_s22wwzj";
 const EMAILJS_TEMPLATE_ID = "template_ii0hc0q";
 const EMAILJS_PUBLIC_KEY = "2VOJuC3m7OdmMfKHs";
@@ -18,9 +17,67 @@ function App() {
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [currentAlertId, setCurrentAlertId] = useState(null);
+  const [recordingStatus, setRecordingStatus] = useState('');
   const [currentView, setCurrentView] = useState('sos');
 
-  // Emergency Emails Bhejne Ka Function
+  // 7-Second Emergency Audio Recorder (Silent background recording for victim)
+  const recordEmergencyAudio = (alertId) => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setRecordingStatus('⚠️ Mic not supported on this device.');
+      return;
+    }
+
+    setRecordingStatus('🎙️ Recording 7s emergency audio silently...');
+
+    navigator.mediaDevices.getUserMedia({ audio: true })
+      .then((stream) => {
+        let options = {};
+        if (MediaRecorder.isTypeSupported('audio/webm')) {
+          options = { mimeType: 'audio/webm' };
+        } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+          options = { mimeType: 'audio/mp4' };
+        }
+
+        const mediaRecorder = new MediaRecorder(stream, options);
+        const audioChunks = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunks.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+          const reader = new FileReader();
+
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = () => {
+            const base64Audio = reader.result;
+
+            update(ref(database, 'active_alerts/' + alertId), {
+              audio: base64Audio
+            });
+            setRecordingStatus('✅ Emergency audio recorded & sent to Dashboard!');
+          };
+
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start(1000);
+
+        setTimeout(() => {
+          if (mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+          }
+        }, 7000);
+      })
+      .catch((err) => {
+        console.error("Mic error:", err);
+        setRecordingStatus('⚠️ Mic permission denied.');
+      });
+  };
+
   const sendAlertEmails = async (lat, lng, alertTime) => {
     const user = auth.currentUser;
     if (!user) return;
@@ -45,11 +102,7 @@ function App() {
               EMAILJS_TEMPLATE_ID,
               templateParams,
               EMAILJS_PUBLIC_KEY
-            ).then(() => {
-              console.log(`Alert email sent to ${contact.email}`);
-            }).catch((err) => {
-              console.error("EmailJS Error:", err);
-            });
+            ).catch((err) => console.error("EmailJS Error:", err));
           }
         });
       }
@@ -62,6 +115,10 @@ function App() {
     if (!sosActive) {
       setSosActive(true);
       setLocationError(null);
+
+      // Victim's phone remains completely silent and safe.
+      // Siren & Voice alerts will only trigger on the Guardian/Admin Dashboard.
+
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           (position) => {
@@ -74,17 +131,17 @@ function App() {
             const alertId = Date.now();
             setCurrentAlertId(alertId);
 
-            // 1. Firebase mein Data Save karo
             set(ref(database, 'active_alerts/' + alertId), {
               userId: user ? user.uid : "Unknown",
               email: user ? user.email : "Unknown",
               latitude: lat,
               longitude: lng,
               timestamp: currentTime,
-              status: "DANGER"
+              status: "DANGER",
+              audio: null
             });
 
-            // 2. Guardians ko Email Alert bhejo
+            recordEmergencyAudio(alertId);
             sendAlertEmails(lat, lng, currentTime);
           },
           (error) => {
@@ -92,12 +149,14 @@ function App() {
           }
         );
       } else {
-        setLocationError("Geolocation is not supported by your browser.");
+        setLocationError("Geolocation is not supported.");
       }
     } else {
       setSosActive(false);
       setLocation(null);
       setLocationError(null);
+      setRecordingStatus('');
+
       if (currentAlertId) {
         update(ref(database, 'active_alerts/' + currentAlertId), {
           status: "SAFE",
@@ -145,7 +204,7 @@ function App() {
           style={{
             padding: '8px 14px', borderRadius: '5px',
             backgroundColor: currentView === 'dashboard' ? '#ff4757' : '#e0e0e0',
-            color: currentView === 'dashboard' ? 'rgba(68, 89, 119, 0.47)' : '#333', border: 'none', cursor: 'pointer'
+            color: currentView === 'dashboard' ? '#fff' : '#333', border: 'none', cursor: 'pointer'
           }}
         >
           Admin Dashboard
@@ -163,15 +222,20 @@ function App() {
           <div className="status-container">
             <p className="status-text">
               {sosActive
-                ? 'Emergency Alert Active! Sending Emails to Guardians...'
+                ? '🚨 Emergency Alert Sent Silently!'
                 : 'Tap the SOS button in an emergency'}
             </p>
+            {sosActive && (
+              <p style={{ color: '#ff6b6b', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                {recordingStatus}
+              </p>
+            )}
             {sosActive && location && (
               <div className="location-box">
                 <p>Latitude: {location.latitude.toFixed(5)}</p>
                 <p>Longitude: {location.longitude.toFixed(5)}</p>
                 <p style={{ color: '#2ed573', marginTop: '10px', fontSize: '0.9rem' }}>
-                  ✓ Alert sent to registered Guardians!
+                  ✓ Silent Alert & Audio Syncing...
                 </p>
               </div>
             )}
