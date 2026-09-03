@@ -145,7 +145,7 @@ function App() {
             recordEmergencyAudio(alertId);
             sendAlertEmails(lat, lng, currentTime);
           },
-          (error) => {
+          () => {
             setLocationError("Location access denied or not available.");
           }
         );

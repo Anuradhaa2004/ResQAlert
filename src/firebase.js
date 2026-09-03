@@ -20,4 +20,4 @@ const database = getDatabase(app);
 const auth = getAuth(app); // Auth chalu karne ke liye
 
 // Ab hum app aur database ke sath auth ko bhi export kar rahe hain
-export { app, database, auth };
+export { app, database, auth, analytics };
