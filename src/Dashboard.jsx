@@ -18,7 +18,7 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// Custom Futuristic Tactical DivIcons for Leaflet
+// Custom Futuristic Tactical DivIcon for Active SOS Beacons
 const createDangerMarker = () =>
     L.divIcon({
         className: 'rc-marker-beacon',
@@ -29,18 +29,6 @@ const createDangerMarker = () =>
         iconSize: [40, 40],
         iconAnchor: [20, 20],
         popupAnchor: [0, -20],
-    });
-
-const createAcceptedMarker = () =>
-    L.divIcon({
-        className: 'rc-marker-beacon',
-        html: `
-            <div class="rc-beacon-ripple accepted"></div>
-            <div class="rc-beacon-core accepted">✓</div>
-        `,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-        popupAnchor: [0, -18],
     });
 
 // Smooth Camera Controller
@@ -227,6 +215,14 @@ function Dashboard() {
         }
     };
 
+    // Resolve Emergency Handler (Archives/clears accepted alerts when safe)
+    const handleResolveEmergency = (alertId) => {
+        update(ref(database, 'active_alerts/' + alertId), {
+            status: 'RESOLVED',
+            resolvedAt: new Date().toLocaleString()
+        });
+    };
+
     // Focus on an alert on the map
     const handleFocusAlert = (alert) => {
         setSelectedAlertId(alert.id);
@@ -248,6 +244,11 @@ function Dashboard() {
     const dangerCount = alerts.filter(a => a.status === 'DANGER').length;
     const acceptedCount = alerts.filter(a => a.status === 'ACCEPTED').length;
     const isSirenActive = dangerCount > 0 && !isMuted;
+
+    // Only ACTIVE DANGER SOS alerts should appear on the Tactical Map
+    const activeDangerAlerts = useMemo(() => {
+        return alerts.filter(a => a.status === 'DANGER' && a.latitude && a.longitude);
+    }, [alerts]);
 
     const filteredAlerts = useMemo(() => {
         return alerts.filter(alert => {
@@ -429,7 +430,7 @@ function Dashboard() {
                                 <span>🗺️</span> Tactical Geo-Tracking
                             </h2>
                             <span className="rc-panel-counter">
-                                {alerts.length} UNITS
+                                {dangerCount > 0 ? `${dangerCount} ACTIVE SOS` : 'RADAR STANDBY'}
                             </span>
                         </div>
 
@@ -458,8 +459,8 @@ function Dashboard() {
 
                     <div className="rc-map-canvas-container">
                         <MapContainer
-                            center={defaultCenter}
-                            zoom={alerts.length > 0 ? 13 : 5}
+                            center={activeDangerAlerts.length > 0 ? [activeDangerAlerts[0].latitude, activeDangerAlerts[0].longitude] : defaultCenter}
+                            zoom={activeDangerAlerts.length > 0 ? 13 : 5}
                             style={{ height: '100%', width: '100%' }}
                             scrollWheelZoom={true}
                         >
@@ -469,87 +470,79 @@ function Dashboard() {
                             />
 
                             <MapCameraController targetCoords={targetCoords} />
-                            <MapBoundsController alerts={alerts} trigger={fitTrigger} />
+                            <MapBoundsController alerts={activeDangerAlerts} trigger={fitTrigger} />
 
-                            {alerts.map((alert) => {
-                                if (!alert.latitude || !alert.longitude) return null;
-                                const isDanger = alert.status === 'DANGER';
-                                const customIcon = isDanger ? createDangerMarker() : createAcceptedMarker();
+                            {activeDangerAlerts.map((alert) => (
+                                <Marker
+                                    key={alert.id}
+                                    position={[alert.latitude, alert.longitude]}
+                                    icon={createDangerMarker()}
+                                >
+                                    <Popup>
+                                        <div className="rc-popup-container">
+                                            <div className="rc-popup-header">
+                                                <span className="rc-popup-badge danger">
+                                                    🚨 SOS DANGER
+                                                </span>
+                                                <span className="rc-popup-time">{alert.timestamp}</span>
+                                            </div>
 
-                                return (
-                                    <Marker
-                                        key={alert.id}
-                                        position={[alert.latitude, alert.longitude]}
-                                        icon={customIcon}
-                                    >
-                                        <Popup>
-                                            <div className="rc-popup-container">
-                                                <div className="rc-popup-header">
-                                                    <span className={`rc-popup-badge ${isDanger ? 'danger' : 'accepted'}`}>
-                                                        {isDanger ? '🚨 SOS DANGER' : '✓ ACCEPTED'}
+                                            <div className="rc-popup-meta">
+                                                <div className="rc-popup-row">
+                                                    <span>Victim:</span>
+                                                    <span className="rc-popup-val">{alert.email}</span>
+                                                </div>
+                                                <div className="rc-popup-row">
+                                                    <span>GPS:</span>
+                                                    <span className="rc-popup-val mono">
+                                                        {alert.latitude.toFixed(5)}°, {alert.longitude.toFixed(5)}°
                                                     </span>
-                                                    <span className="rc-popup-time">{alert.timestamp}</span>
-                                                </div>
-
-                                                <div className="rc-popup-meta">
-                                                    <div className="rc-popup-row">
-                                                        <span>Victim:</span>
-                                                        <span className="rc-popup-val">{alert.email}</span>
-                                                    </div>
-                                                    <div className="rc-popup-row">
-                                                        <span>GPS:</span>
-                                                        <span className="rc-popup-val mono">
-                                                            {alert.latitude.toFixed(5)}°, {alert.longitude.toFixed(5)}°
-                                                        </span>
-                                                    </div>
-                                                </div>
-
-                                                {alert.audio && (
-                                                    <div className="rc-popup-audio">
-                                                        <p className="rc-popup-audio-label">
-                                                            <span>🎙️</span> Emergency Voice Transmission
-                                                        </p>
-                                                        <audio
-                                                            controls
-                                                            src={alert.audio}
-                                                            style={{ width: '100%', height: '32px' }}
-                                                        />
-                                                    </div>
-                                                )}
-
-                                                <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-                                                    <a
-                                                        href={`https://www.google.com/maps/dir/?api=1&destination=${alert.latitude},${alert.longitude}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="rc-btn-nav"
-                                                        style={{ flex: 1, justifyContent: 'center', padding: '8px' }}
-                                                    >
-                                                        🧭 Google Maps
-                                                    </a>
-                                                    {isDanger && (
-                                                        <button
-                                                            id={`popup-accept-btn-${alert.id}`}
-                                                            className="rc-popup-btn accept"
-                                                            style={{ flex: 1 }}
-                                                            onClick={() => handleAcceptEmergency(alert.id)}
-                                                        >
-                                                            🛡️ Accept
-                                                        </button>
-                                                    )}
                                                 </div>
                                             </div>
-                                        </Popup>
-                                    </Marker>
-                                );
-                            })}
+
+                                            {alert.audio && (
+                                                <div className="rc-popup-audio">
+                                                    <p className="rc-popup-audio-label">
+                                                        <span>🎙️</span> Emergency Voice Transmission
+                                                    </p>
+                                                    <audio
+                                                        controls
+                                                        src={alert.audio}
+                                                        style={{ width: '100%', height: '32px' }}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                                                <a
+                                                    href={`https://www.google.com/maps/dir/?api=1&destination=${alert.latitude},${alert.longitude}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="rc-btn-nav"
+                                                    style={{ flex: 1, justifyContent: 'center', padding: '8px' }}
+                                                >
+                                                    🧭 Google Maps
+                                                </a>
+                                                <button
+                                                    id={`popup-accept-btn-${alert.id}`}
+                                                    className="rc-popup-btn accept"
+                                                    style={{ flex: 1 }}
+                                                    onClick={() => handleAcceptEmergency(alert.id)}
+                                                >
+                                                    🛡️ Accept
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </Popup>
+                                </Marker>
+                            ))}
                         </MapContainer>
 
                         {/* Tactical HUD Overlay at bottom of map */}
                         <div className="rc-map-hud-overlay">
                             <div className="rc-hud-item">
-                                <span className="rc-hud-dot-green"></span>
-                                <span>RADAR ACTIVE</span>
+                                <span className={`rc-hud-dot-green ${dangerCount > 0 ? 'pulse-red' : ''}`}></span>
+                                <span>{dangerCount > 0 ? `${dangerCount} ACTIVE THREATS` : 'RADAR ACTIVE • ZERO ACTIVE DISTRESS'}</span>
                             </div>
                             <div className="rc-hud-item">
                                 <span>LAYER: {mapLayer.toUpperCase()}</span>
@@ -712,13 +705,27 @@ function Dashboard() {
 
                                         {/* Card Action Buttons */}
                                         <div className="rc-card-actions" onClick={(e) => e.stopPropagation()}>
-                                            {isDanger && (
+                                            {isDanger ? (
                                                 <button
                                                     id={`btn-accept-alert-${alert.id}`}
                                                     className="rc-btn-accept"
                                                     onClick={() => handleAcceptEmergency(alert.id)}
                                                 >
                                                     🛡️ Accept Emergency & Mute Siren
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    id={`btn-resolve-alert-${alert.id}`}
+                                                    className="rc-btn-accept"
+                                                    style={{
+                                                        background: 'rgba(16, 185, 129, 0.15)',
+                                                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                                                        color: '#34d399'
+                                                    }}
+                                                    onClick={() => handleResolveEmergency(alert.id)}
+                                                    title="Mark incident as resolved and clear from active feed"
+                                                >
+                                                    ✓ Case Resolved (Clear)
                                                 </button>
                                             )}
 
