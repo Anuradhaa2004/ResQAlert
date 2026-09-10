@@ -62,6 +62,45 @@ function MapBoundsController({ alerts, trigger }) {
     return null;
 }
 
+// Auto-cleanup: Accepted alerts are automatically cleared after 5 days
+const MAX_ACCEPTED_RETENTION_DAYS = 5;
+
+const getAlertAgeInDays = (alert) => {
+    // 1. If explicit numeric timestamp is stored
+    if (alert.acceptedTimestamp && typeof alert.acceptedTimestamp === 'number') {
+        return (Date.now() - alert.acceptedTimestamp) / (1000 * 60 * 60 * 24);
+    }
+
+    // 2. Parse acceptedAt string (e.g. "29/8/2026, 5:25:23 pm" or ISO string)
+    const dateStr = alert.acceptedAt || alert.timestamp;
+    if (dateStr && typeof dateStr === 'string') {
+        const parsedTime = Date.parse(dateStr);
+        if (!isNaN(parsedTime)) {
+            return (Date.now() - parsedTime) / (1000 * 60 * 60 * 24);
+        }
+
+        // Parse Indian / DD/MM/YYYY locale format: "29/8/2026, 5:25:23 pm"
+        const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        if (match) {
+            const day = parseInt(match[1], 10);
+            const month = parseInt(match[2], 10) - 1;
+            const year = parseInt(match[3], 10);
+            const parsedDate = new Date(year, month, day);
+            if (!isNaN(parsedDate.getTime())) {
+                return (Date.now() - parsedDate.getTime()) / (1000 * 60 * 60 * 24);
+            }
+        }
+    }
+
+    // 3. Fallback: Check numeric alert.id (generated with Date.now())
+    const idNum = Number(alert.id);
+    if (!isNaN(idNum) && idNum > 1000000000000) {
+        return (Date.now() - idNum) / (1000 * 60 * 60 * 24);
+    }
+
+    return 0;
+};
+
 function Dashboard() {
     const [alerts, setAlerts] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -178,7 +217,15 @@ function Dashboard() {
             if (data) {
                 const activeList = Object.keys(data)
                     .map((key) => ({ id: key, ...data[key] }))
-                    .filter((item) => item.status === 'DANGER' || item.status === 'ACCEPTED')
+                    .filter((item) => {
+                        if (item.status === 'DANGER') return true;
+                        if (item.status === 'ACCEPTED') {
+                            // Filter out cases that are older than 5 days
+                            const ageInDays = getAlertAgeInDays(item);
+                            return ageInDays <= MAX_ACCEPTED_RETENTION_DAYS;
+                        }
+                        return false;
+                    })
                     .sort((a, b) => (b.id || 0) - (a.id || 0));
 
                 setAlerts(activeList);
@@ -205,7 +252,8 @@ function Dashboard() {
     const handleAcceptEmergency = (alertId) => {
         update(ref(database, 'active_alerts/' + alertId), {
             status: 'ACCEPTED',
-            acceptedAt: new Date().toLocaleString()
+            acceptedAt: new Date().toLocaleString(),
+            acceptedTimestamp: Date.now()
         });
 
         // Check remaining danger alerts
