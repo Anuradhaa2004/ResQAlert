@@ -4,6 +4,7 @@ import { ref, set, update, get } from 'firebase/database';
 import { signOut } from 'firebase/auth';
 import emailjs from '@emailjs/browser';
 import './App.css';
+import appLogo from './assets/Logo.png';
 import Auth from './Auth';
 import Dashboard from './Dashboard';
 import GuardiansPage from './EmergencyContact/GuardiansPage';
@@ -190,8 +191,7 @@ function App() {
           {/* Left: Brand Identity */}
           <div className="navbar-brand" onClick={() => setCurrentView('sos')}>
             <div className="navbar-brand-logo">
-              <div className="navbar-logo-glow"></div>
-              <span className="navbar-logo-icon">🚨</span>
+              <img src={appLogo} alt="ResQAlert Logo" className="navbar-logo-img" />
             </div>
             <div className="navbar-brand-info">
               <div className="navbar-brand-title">

@@ -59,27 +59,23 @@
 
 .navbar-brand-logo {
   position: relative;
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #ff1744, #99001f);
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  background: #ffffff;
+  border-radius: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 18px rgba(255, 23, 68, 0.45);
+  box-shadow: 0 4px 16px rgba(255, 23, 68, 0.25);
   flex-shrink: 0;
+  overflow: hidden;
 }
 
-.navbar-logo-glow {
-  position: absolute;
-  inset: -2px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 23, 68, 0.6), transparent 70%);
-  z-index: -1;
-}
-
-.navbar-logo-icon {
-  font-size: 20px;
+.navbar-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .navbar-brand-info {
@@ -544,13 +540,9 @@
   }
 
   .navbar-brand-logo {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-  }
-
-  .navbar-logo-icon {
-    font-size: 17px;
+    width: 36px;
+    height: 36px;
+    border-radius: 9px;
   }
 
   .navbar-brand-title {
