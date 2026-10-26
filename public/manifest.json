@@ -1,15 +1,32 @@
 {
-    "short_name": "ResQApp",
-    "name": "ResQApp - Emergency Safety App",
-    "icons": [
-        {
-            "src": "favicon.ico",
-            "sizes": "64x64 32x32 24x24 16x16",
-            "type": "image/x-icon"
-        }
-    ],
-    "start_url": ".",
-    "display": "standalone",
-    "theme_color": "#ff4757",
-    "background_color": "#ffffff"
+  "short_name": "ResQAlert",
+  "name": "ResQAlert - Proactive Safety",
+  "description": "Proactive Emergency Safety Application. One tap SOS, silent alerts, live location tracking and guardian notifications.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0c0e17",
+  "background_color": "#0c0e17",
+  "categories": ["safety", "utilities", "lifestyle"]
 }
