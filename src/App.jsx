@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { auth, database } from './firebase';
-import { ref, set, update, get } from 'firebase/database';
+import { ref, set, update, get, onValue } from 'firebase/database';
 import { signOut } from 'firebase/auth';
 import emailjs from '@emailjs/browser';
 import './App.css';
@@ -8,6 +8,7 @@ import appLogo from './assets/Logo.png';
 import Auth from './Auth';
 import Dashboard from './Dashboard';
 import GuardiansPage from './EmergencyContact/GuardiansPage';
+import VoiceEmergencyService from './VoiceEmergencyService';
 
 const EMAILJS_SERVICE_ID = "service_s22wwzj";
 const EMAILJS_TEMPLATE_ID = "template_ii0hc0q";
@@ -21,6 +22,19 @@ function App() {
   const [currentAlertId, setCurrentAlertId] = useState(null);
   const [recordingStatus, setRecordingStatus] = useState('');
   const [currentView, setCurrentView] = useState('sos');
+  const [guardiansList, setGuardiansList] = useState([]);
+
+  // Synchronize registered guardians list for Dashboard and automated alerts
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const contactsRef = ref(database, `users/${user.uid}/contacts`);
+    const unsubscribe = onValue(contactsRef, (snap) => {
+      const data = snap.val();
+      setGuardiansList(data ? Object.keys(data).map((k) => ({ id: k, ...data[k] })) : []);
+    });
+    return () => unsubscribe();
+  }, [isLoggedIn]);
 
   // 7-Second Emergency Audio Recorder (Silent background recording for victim)
   const recordEmergencyAudio = (alertId) => {
@@ -234,10 +248,19 @@ function App() {
 
           {/* Right: Status Pill, User, Logout */}
           <div className="navbar-actions">
-            <div className={`nav-status-badge ${sosActive ? 'danger' : 'safe'}`}>
-              <span className="nav-status-dot"></span>
-              <span className="nav-status-text">{sosActive ? 'EMERGENCY' : 'READY'}</span>
-            </div>
+            <VoiceEmergencyService
+              user={user}
+              guardiansList={guardiansList}
+              sosActive={sosActive}
+              onTriggerSilentSos={({ alertId, latitude, longitude }) => {
+                setSosActive(true);
+                setCurrentAlertId(alertId);
+                if (latitude && longitude) {
+                  setLocation({ latitude, longitude });
+                }
+                recordEmergencyAudio(alertId);
+              }}
+            />
 
             {user?.email && (
               <div className="nav-user-pill" title={user.email}>
@@ -361,11 +384,18 @@ function App() {
                 One tap instantly alerts guardians with live GPS & audio silently
               </p>
             )}
+
+
           </div>
         )}
 
         {currentView === 'contacts' && <GuardiansPage />}
-        {currentView === 'dashboard' && <Dashboard />}
+        {currentView === 'dashboard' && (
+          <Dashboard
+            userEmail={user?.email}
+            guardiansList={guardiansList}
+          />
+        )}
       </main>
     </div>
   );

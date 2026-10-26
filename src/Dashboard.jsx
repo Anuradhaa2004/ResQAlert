@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { ref, onValue, update } from 'firebase/database';
-import { database } from './firebase';
+import { auth, database } from './firebase';
+import LowBatteryAlert from './LowBatteryAlert';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -101,7 +102,7 @@ const getAlertAgeInDays = (alert) => {
     return 0;
 };
 
-function Dashboard() {
+function Dashboard({ userEmail, guardiansList }) {
     const [alerts, setAlerts] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, DANGER, ACCEPTED
@@ -112,9 +113,37 @@ function Dashboard() {
     const [isMuted, setIsMuted] = useState(false);
     const [copiedId, setCopiedId] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+    const [resolvedGuardians, setResolvedGuardians] = useState([]);
 
     const sirenIntervalRef = useRef(null);
     const isMutedRef = useRef(isMuted);
+
+    const currentUser = auth.currentUser;
+    const activeUserEmail = userEmail || currentUser?.email || 'Unknown User';
+
+    // Fetch guardians from Firebase Realtime Database if not passed via props
+    useEffect(() => {
+        if (guardiansList && Array.isArray(guardiansList) && guardiansList.length > 0) {
+            setResolvedGuardians(guardiansList);
+            return;
+        }
+        if (currentUser?.uid) {
+            const contactsRef = ref(database, `users/${currentUser.uid}/contacts`);
+            const unsub = onValue(contactsRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    setResolvedGuardians(Object.keys(data).map(key => ({ id: key, ...data[key] })));
+                } else {
+                    setResolvedGuardians([]);
+                }
+            });
+            return () => unsub();
+        }
+    }, [guardiansList, currentUser]);
+
+    const activeGuardians = (guardiansList && Array.isArray(guardiansList) && guardiansList.length > 0)
+        ? guardiansList
+        : resolvedGuardians;
 
     // Live clock ticker
     useEffect(() => {
@@ -385,6 +414,12 @@ function Dashboard() {
                     </div>
                 </div>
             </header>
+
+            {/* Automated Low Battery Telemetry & Guardian Dispatch System */}
+            <LowBatteryAlert
+                userEmail={activeUserEmail}
+                guardiansList={activeGuardians}
+            />
 
             {/* 2. KPI METRICS CARDS ROW */}
             <section className="rc-kpi-grid">
@@ -694,9 +729,29 @@ function Dashboard() {
                                             </div>
 
                                             <span className={`rc-card-badge ${isDanger ? 'danger' : 'accepted'}`}>
-                                                {isDanger ? '🚨 SOS ACTIVE' : '✓ ACCEPTED'}
+                                                {alert.alertType === 'LOW_BATTERY'
+                                                    ? `⚡ LOW BATTERY (${alert.batteryLevel || '≤20'}%)`
+                                                    : alert.alertType === 'VOICE_TRIGGER'
+                                                    ? '🎙️ VOICE SOS (HELP x3)'
+                                                    : isDanger ? '🚨 SOS ACTIVE' : '✓ ACCEPTED'}
                                             </span>
                                         </div>
+
+                                        {/* Low Battery Note if present */}
+                                        {alert.note && (
+                                            <div style={{
+                                                fontSize: '12px',
+                                                color: '#ff6b81',
+                                                margin: '2px 0 8px',
+                                                fontFamily: 'var(--rc-font-mono, monospace)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}>
+                                                <span>⚡</span>
+                                                <span>{alert.note}</span>
+                                            </div>
+                                        )}
 
                                         {/* Coordinates & Location Box */}
                                         <div className="rc-card-location-box">
