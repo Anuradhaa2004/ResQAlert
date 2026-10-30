@@ -18,6 +18,12 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Early capture of beforeinstallprompt so event is preserved even before React mounts
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  window.deferredPwaPrompt = e;
+});
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

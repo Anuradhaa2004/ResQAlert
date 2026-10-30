@@ -9,7 +9,7 @@ import Auth from './Auth';
 import Dashboard from './Dashboard';
 import GuardiansPage from './EmergencyContact/GuardiansPage';
 import VoiceEmergencyService from './VoiceEmergencyService';
-import InstallPwaPrompt from './InstallPwaPrompt';
+import TopInstallBanner from './TopInstallBanner';
 
 const EMAILJS_SERVICE_ID = "service_s22wwzj";
 const EMAILJS_TEMPLATE_ID = "template_ii0hc0q";
@@ -191,7 +191,12 @@ function App() {
   };
 
   if (!isLoggedIn) {
-    return <Auth setIsLoggedIn={setIsLoggedIn} />;
+    return (
+      <div className="auth-shell">
+        <TopInstallBanner />
+        <Auth setIsLoggedIn={setIsLoggedIn} />
+      </div>
+    );
   }
 
   const user = auth.currentUser;
@@ -199,6 +204,9 @@ function App() {
 
   return (
     <div className="app-shell">
+      {/* Top Navbar-Style Install PWA Banner */}
+      <TopInstallBanner />
+
       {/* Full-width Top Professional Navbar */}
       <header className="navbar-wrapper">
         <div className="navbar-container">
@@ -398,9 +406,6 @@ function App() {
           />
         )}
       </main>
-
-      {/* 1-Tap PWA Mobile & Desktop Install Prompt */}
-      <InstallPwaPrompt />
     </div>
   );
 }

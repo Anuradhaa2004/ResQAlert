@@ -2,8 +2,8 @@
    ResQAlert — Full-Bleed Professional Design System
    ============================================ */
 
-/* === APP SHELL === */
-.app-shell {
+.app-shell,
+.auth-shell {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
