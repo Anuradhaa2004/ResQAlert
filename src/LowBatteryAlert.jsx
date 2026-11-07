@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ref, set, update, get } from 'firebase/database';
 import { auth, database } from './firebase';
 import emailjs from '@emailjs/browser';
@@ -20,7 +20,6 @@ const LOW_BATTERY_THRESHOLD = 20; // 20%
 export default function LowBatteryAlert({ userEmail, guardiansList = [] }) {
   const [batteryLevel, setBatteryLevel] = useState(100);
   const [isCharging, setIsCharging] = useState(false);
-  const [isSupported, setIsSupported] = useState(true);
   const [isDispatching, setIsDispatching] = useState(false);
   const [alertDispatched, setAlertDispatched] = useState(false);
   const [lastDispatchedTime, setLastDispatchedTime] = useState(null);
@@ -151,8 +150,6 @@ export default function LowBatteryAlert({ userEmail, guardiansList = [] }) {
 
   // Battery Status API listener
   useEffect(() => {
-    let batteryInstance = null;
-
     const handleBatteryUpdate = (battery) => {
       const level = Math.round(battery.level * 100);
       setBatteryLevel(level);
@@ -172,7 +169,6 @@ export default function LowBatteryAlert({ userEmail, guardiansList = [] }) {
 
     if (navigator && 'getBattery' in navigator) {
       navigator.getBattery().then((battery) => {
-        batteryInstance = battery;
         handleBatteryUpdate(battery);
 
         const onLevelChange = () => handleBatteryUpdate(battery);
@@ -187,10 +183,7 @@ export default function LowBatteryAlert({ userEmail, guardiansList = [] }) {
         };
       }).catch((err) => {
         console.warn('Battery API error, using simulation fallback:', err);
-        setIsSupported(false);
       });
-    } else {
-      setIsSupported(false);
     }
   }, [triggerLowBatteryAlert]);
 

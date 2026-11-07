@@ -81,7 +81,7 @@ const getAlertAgeInDays = (alert) => {
         }
 
         // Parse Indian / DD/MM/YYYY locale format: "29/8/2026, 5:25:23 pm"
-        const match = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+        const match = dateStr.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
         if (match) {
             const day = parseInt(match[1], 10);
             const month = parseInt(match[2], 10) - 1;
@@ -124,7 +124,6 @@ function Dashboard({ userEmail, guardiansList }) {
     // Fetch guardians from Firebase Realtime Database if not passed via props
     useEffect(() => {
         if (guardiansList && Array.isArray(guardiansList) && guardiansList.length > 0) {
-            setResolvedGuardians(guardiansList);
             return;
         }
         if (currentUser?.uid) {

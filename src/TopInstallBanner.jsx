@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import './TopInstallBanner.css';
 import appLogo from './assets/Logo.png';
 
@@ -12,8 +12,27 @@ const DISMISS_KEY = 'resq_install_banner_dismissed';
  * Captures beforeinstallprompt and triggers the native install experience.
  */
 export default function TopInstallBanner() {
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(() => {
+    return typeof window !== 'undefined' ? window.deferredPwaPrompt || null : null;
+  });
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.includes('android-app://');
+    if (isStandalone) return false;
+
+    const isPreview = new URLSearchParams(window.location.search).has('preview-banner');
+    if (isPreview) return true;
+
+    const isDismissed =
+      sessionStorage.getItem(DISMISS_KEY) === 'true' ||
+      localStorage.getItem(DISMISS_KEY) === 'true';
+    if (isDismissed) return false;
+
+    return Boolean(window.deferredPwaPrompt);
+  });
   const [isClosing, setIsClosing] = useState(false);
 
   useEffect(() => {
@@ -32,21 +51,10 @@ export default function TopInstallBanner() {
       sessionStorage.getItem(DISMISS_KEY) === 'true' ||
       localStorage.getItem(DISMISS_KEY) === 'true';
 
-    // Optional query param (?preview-banner=true) to preview UI anytime during development
     const isPreview = new URLSearchParams(window.location.search).has('preview-banner');
 
     if (isDismissed && !isPreview) {
       return;
-    }
-
-    if (isPreview) {
-      setIsVisible(true);
-    }
-
-    // Check if event was captured early before component mounted
-    if (window.deferredPwaPrompt) {
-      setDeferredPrompt(window.deferredPwaPrompt);
-      setIsVisible(true);
     }
 
     // 3. Capture beforeinstallprompt event and hold deferredPrompt

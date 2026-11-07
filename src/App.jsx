@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { auth, database } from './firebase';
 import { ref, set, update, get, onValue } from 'firebase/database';
-import { signOut } from 'firebase/auth';
+import { signOut, onAuthStateChanged } from 'firebase/auth';
 import emailjs from '@emailjs/browser';
 import './App.css';
 import appLogo from './assets/Logo.png';
@@ -16,7 +16,8 @@ const EMAILJS_TEMPLATE_ID = "template_ii0hc0q";
 const EMAILJS_PUBLIC_KEY = "2VOJuC3m7OdmMfKHs";
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const [authLoading, setAuthLoading] = useState(!auth.currentUser);
   const [sosActive, setSosActive] = useState(false);
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
@@ -25,17 +26,28 @@ function App() {
   const [currentView, setCurrentView] = useState('sos');
   const [guardiansList, setGuardiansList] = useState([]);
 
+  // Listen to persistent Firebase Auth state across PWA restarts/reopens
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Synchronize registered guardians list for Dashboard and automated alerts
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-    const contactsRef = ref(database, `users/${user.uid}/contacts`);
+    if (!currentUser) return;
+    const contactsRef = ref(database, `users/${currentUser.uid}/contacts`);
     const unsubscribe = onValue(contactsRef, (snap) => {
       const data = snap.val();
       setGuardiansList(data ? Object.keys(data).map((k) => ({ id: k, ...data[k] })) : []);
     });
-    return () => unsubscribe();
-  }, [isLoggedIn]);
+    return () => {
+      unsubscribe();
+      setGuardiansList([]);
+    };
+  }, [currentUser]);
 
   // 7-Second Emergency Audio Recorder (Silent background recording for victim)
   const recordEmergencyAudio = (alertId) => {
@@ -96,11 +108,11 @@ function App() {
   };
 
   const sendAlertEmails = async (lat, lng, alertTime) => {
-    const user = auth.currentUser;
-    if (!user) return;
+    const activeUser = currentUser || auth.currentUser;
+    if (!activeUser) return;
 
     try {
-      const snapshot = await get(ref(database, `users/${user.uid}/contacts`));
+      const snapshot = await get(ref(database, `users/${activeUser.uid}/contacts`));
       if (snapshot.exists()) {
         const contacts = snapshot.val();
 
@@ -108,7 +120,7 @@ function App() {
           if (contact.email) {
             const templateParams = {
               to_email: contact.email,
-              user_name: user.email,
+              user_name: activeUser.email,
               latitude: lat,
               longitude: lng,
               timestamp: alertTime
@@ -144,13 +156,13 @@ function App() {
             const currentTime = new Date().toLocaleString();
             setLocation({ latitude: lat, longitude: lng });
 
-            const user = auth.currentUser;
+            const activeUser = currentUser || auth.currentUser;
             const alertId = Date.now();
             setCurrentAlertId(alertId);
 
             set(ref(database, 'active_alerts/' + alertId), {
-              userId: user ? user.uid : "Unknown",
-              email: user ? user.email : "Unknown",
+              userId: activeUser ? activeUser.uid : "Unknown",
+              email: activeUser ? activeUser.email : "Unknown",
               latitude: lat,
               longitude: lng,
               timestamp: currentTime,
@@ -186,21 +198,44 @@ function App() {
 
   const handleLogout = () => {
     signOut(auth).then(() => {
-      setIsLoggedIn(false);
+      setCurrentUser(null);
+      setCurrentView('sos');
+    }).catch((err) => {
+      console.error("Logout error:", err);
     });
   };
 
-  if (!isLoggedIn) {
+  // Splash loading screen while restoring persistent session from IndexedDB / PWA storage
+  if (authLoading) {
     return (
-      <div className="auth-shell">
-        <TopInstallBanner />
-        <Auth setIsLoggedIn={setIsLoggedIn} />
+      <div className="auth-loading-screen">
+        <div className="auth-loading-logo">
+          <img src={appLogo} alt="ResQAlert" />
+        </div>
+        <div className="auth-loading-title">
+          ResQ<span>Alert</span>
+        </div>
+        <div className="auth-loading-spinner"></div>
+        <span className="auth-loading-text">Securing session...</span>
       </div>
     );
   }
 
-  const user = auth.currentUser;
-  const userInitial = user?.email ? user.email.charAt(0).toUpperCase() : 'U';
+  // Not logged in: Show Auth Screen
+  if (!currentUser) {
+    return (
+      <div className="auth-shell">
+        <TopInstallBanner />
+        <Auth setIsLoggedIn={(status) => {
+          if (status && auth.currentUser) {
+            setCurrentUser(auth.currentUser);
+          }
+        }} />
+      </div>
+    );
+  }
+
+  const userInitial = currentUser?.email ? currentUser.email.charAt(0).toUpperCase() : 'U';
 
   return (
     <div className="app-shell">
@@ -258,7 +293,7 @@ function App() {
           {/* Right: Status Pill, User, Logout */}
           <div className="navbar-actions">
             <VoiceEmergencyService
-              user={user}
+              user={currentUser}
               guardiansList={guardiansList}
               sosActive={sosActive}
               onTriggerSilentSos={({ alertId, latitude, longitude }) => {
@@ -271,10 +306,10 @@ function App() {
               }}
             />
 
-            {user?.email && (
-              <div className="nav-user-pill" title={user.email}>
+            {currentUser?.email && (
+              <div className="nav-user-pill" title={currentUser.email}>
                 <span className="nav-user-avatar">{userInitial}</span>
-                <span className="nav-user-email">{user.email}</span>
+                <span className="nav-user-email">{currentUser.email}</span>
               </div>
             )}
 
@@ -398,10 +433,10 @@ function App() {
           </div>
         )}
 
-        {currentView === 'contacts' && <GuardiansPage />}
+        {currentView === 'contacts' && <GuardiansPage currentUser={currentUser} />}
         {currentView === 'dashboard' && (
           <Dashboard
-            userEmail={user?.email}
+            userEmail={currentUser?.email}
             guardiansList={guardiansList}
           />
         )}

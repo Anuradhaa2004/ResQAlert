@@ -7,11 +7,11 @@ import "./guardians.css";
 
 const MAX_GUARDIANS = 5;
 
-export default function GuardiansPage() {
+export default function GuardiansPage({ currentUser } = {}) {
   const [guardians, setGuardians] = useState([]);
   const [msg, setMsg] = useState("");
   const [msgType, setMsgType] = useState("success");
-  const user = auth.currentUser;
+  const user = currentUser || auth.currentUser;
 
   useEffect(() => {
     if (!user) return;

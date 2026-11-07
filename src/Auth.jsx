@@ -13,23 +13,39 @@ function Auth({ setIsLoggedIn }) {
         e.preventDefault();
         setLoading(true);
 
+        const cleanEmail = email.trim();
+
         if (isLogin) {
-            signInWithEmailAndPassword(auth, email, password)
-                .then(() => setIsLoggedIn(true))
+            signInWithEmailAndPassword(auth, cleanEmail, password)
+                .then(() => {
+                    if (setIsLoggedIn) setIsLoggedIn(true);
+                })
                 .catch((error) => {
-                    alert("Login Failed: " + error.message);
+                    let msg = error.message;
+                    if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                        msg = "Invalid email or password. Please verify your details.";
+                    } else if (error.code === 'auth/too-many-requests') {
+                        msg = "Access temporarily blocked due to multiple attempts. Try again in a minute.";
+                    }
+                    alert("Login Failed: " + msg);
                     setLoading(false);
                 });
         } else {
-            createUserWithEmailAndPassword(auth, email, password)
+            createUserWithEmailAndPassword(auth, cleanEmail, password)
                 .then(() => {
-                    alert("Account created! Please sign in.");
-                    setIsLogin(true);
-                    setPassword('');
-                    setLoading(false);
+                    // Firebase automatically authenticates the user upon registration
+                    if (setIsLoggedIn) setIsLoggedIn(true);
                 })
                 .catch((error) => {
-                    alert("Signup Failed: " + error.message);
+                    let msg = error.message;
+                    if (error.code === 'auth/email-already-in-use') {
+                        msg = "This email is already registered. Please click Sign In.";
+                    } else if (error.code === 'auth/weak-password') {
+                        msg = "Password should be at least 6 characters long.";
+                    } else if (error.code === 'auth/invalid-email') {
+                        msg = "Please provide a valid email address.";
+                    }
+                    alert("Signup Failed: " + msg);
                     setLoading(false);
                 });
         }

@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getDatabase } from "firebase/database";
-import { getAuth } from "firebase/auth"; // Ye nayi line add hui hai Auth ke liye
+import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDIDic2ejf30MxVWb82no8tlWdSjItsTPw",
@@ -17,7 +17,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 const database = getDatabase(app);
-const auth = getAuth(app); // Auth chalu karne ke liye
+const auth = getAuth(app);
 
-// Ab hum app aur database ke sath auth ko bhi export kar rahe hain
+// Explicitly ensure persistence is set to browserLocalPersistence (IndexedDB / LocalStorage)
+// This guarantees the user stays logged in even when reopening the installed PWA
+setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn("Firebase Auth persistence notice:", err);
+});
+
 export { app, database, auth, analytics };

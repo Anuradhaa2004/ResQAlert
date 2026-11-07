@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ref, set, get } from 'firebase/database';
 import { auth, database } from './firebase';
 import emailjs from '@emailjs/browser';
@@ -22,10 +22,12 @@ export default function VoiceEmergencyService({
   onTriggerSilentSos,
   sosActive = false
 }) {
-  const [isSupported, setIsSupported] = useState(true);
+  const [isSupported] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+  });
   const [isServiceActive, setIsServiceActive] = useState(true);
   const [isListening, setIsListening] = useState(false);
-  const [detectedTranscript, setDetectedTranscript] = useState('');
   const [helpCount, setHelpCount] = useState(0);
   const [isTriggered, setIsTriggered] = useState(false);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -176,7 +178,6 @@ export default function VoiceEmergencyService({
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setIsSupported(false);
       return;
     }
 
@@ -199,10 +200,9 @@ export default function VoiceEmergencyService({
       }
 
       const cleanText = combinedTranscript.toLowerCase().trim();
-      setDetectedTranscript(cleanText);
 
       // 1. Regex check for 3 continuous "help" words
-      const threeHelpsRegex = /(?:\bhelp\b[\s,!\.-]*){3,}/i;
+      const threeHelpsRegex = /(?:\bhelp\b[\s,!.-]*){3,}/i;
 
       // 2. Word token count check
       const words = cleanText.replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
@@ -258,7 +258,9 @@ export default function VoiceEmergencyService({
       if (isServiceActiveRef.current) {
         try {
           recognition.start();
-        } catch (e) {}
+        } catch {
+          // Ignore recognition restart race
+        }
       }
     };
 
@@ -274,7 +276,9 @@ export default function VoiceEmergencyService({
       recognition.onend = null;
       try {
         recognition.stop();
-      } catch (e) {}
+      } catch {
+        // Ignore stop race
+      }
     };
   }, [isServiceActive, executeSilentSos]);
 
@@ -284,7 +288,11 @@ export default function VoiceEmergencyService({
       setIsServiceActive(false);
       isServiceActiveRef.current = false;
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // Ignore stop error
+        }
       }
       setIsListening(false);
       setHelpCount(0);
@@ -294,7 +302,11 @@ export default function VoiceEmergencyService({
       isServiceActiveRef.current = true;
       setStatusMessage('');
       if (recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch (e) {}
+        try {
+          recognitionRef.current.start();
+        } catch {
+          // Ignore start error
+        }
       }
     }
   };

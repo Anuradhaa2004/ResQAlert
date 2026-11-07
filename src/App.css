@@ -16,6 +16,90 @@
   font-family: var(--font-main);
 }
 
+/* === PERSISTENT AUTH LOADING SPLASH SCREEN === */
+.auth-loading-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  background-color: #06070d;
+  background-image:
+    radial-gradient(ellipse 70% 40% at 50% 30%, rgba(255, 23, 68, 0.18) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 100%, rgba(255, 23, 68, 0.05) 0%, transparent 80%);
+  color: #ffffff;
+  gap: 18px;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+.auth-loading-logo {
+  width: 76px;
+  height: 76px;
+  background: #ffffff;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 40px rgba(255, 23, 68, 0.4);
+  animation: authPulseLogo 2s infinite ease-in-out;
+  overflow: hidden;
+}
+
+.auth-loading-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-loading-title {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  line-height: 1.1;
+  font-family: var(--font-main);
+}
+
+.auth-loading-title span {
+  color: #ff4569;
+}
+
+.auth-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-top-color: #ff1744;
+  border-radius: 50%;
+  animation: authSpin 0.75s linear infinite;
+  margin-top: 6px;
+}
+
+.auth-loading-text {
+  font-size: 0.75rem;
+  color: #8b949e;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+@keyframes authSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes authPulseLogo {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 25px rgba(255, 23, 68, 0.35);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 50px rgba(255, 23, 68, 0.65);
+  }
+}
+
 /* === FULL-WIDTH LUXURY NAVBAR === */
 .navbar-wrapper {
   position: sticky;
